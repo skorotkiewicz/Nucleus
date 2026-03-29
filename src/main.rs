@@ -1,0 +1,31 @@
+mod args;
+mod orchestrator;
+mod container;
+mod utils;
+
+use anyhow::Result;
+use clap::Parser;
+use nix::unistd::getuid;
+use crate::args::OxideArgs;
+
+fn main() -> Result<()> {
+    // 1. Startup Verification: Check for root
+    // Nucleus needs root for namespaces, mounts, and networking
+    if !getuid().is_root() {
+        return Err(anyhow::anyhow!("Nucleus must be run as root to manage namespaces and networking."));
+    }
+
+    // 2. Parse CLI Arguments
+    let args = OxideArgs::parse();
+
+    // 3. Execution Branch
+    // If internal_child is set, we are running INSIDE the isolated namespaces
+    if args.internal_child {
+        container::run_container_child(args)?;
+    } else {
+        // Otherwise, we are the host-side orchestrator
+        orchestrator::run_parent_orchestrator(args)?;
+    }
+    
+    Ok(())
+}
