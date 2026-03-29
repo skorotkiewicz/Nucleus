@@ -13,7 +13,7 @@ use crate::args::OxideArgs;
 /// Child Context: Isolates itself and prepares the container environment.
 pub fn run_container_child(args: OxideArgs) -> Result<()> {
     // 1. Isolate BEFORE doing anything else
-    unshare(CloneFlags::CLONE_NEWNS | CloneFlags::CLONE_NEWUTS | CloneFlags::CLONE_NEWPID | CloneFlags::CLONE_NEWNET)
+    unshare(CloneFlags::CLONE_NEWNS | CloneFlags::CLONE_NEWUTS | CloneFlags::CLONE_NEWPID | CloneFlags::CLONE_NEWNET | CloneFlags::CLONE_NEWCGROUP)
         .context("Failed to isolate child namespaces")?;
 
     // 2. Fork into the new PID namespace
@@ -78,8 +78,14 @@ fn setup_container_env(args: OxideArgs) -> Result<()> {
     umount2(old_root_path_in_container.as_str(), MntFlags::MNT_DETACH).context("Failed to unmount old root")?;
     fs::remove_dir(old_root_path_in_container.as_str()).ok();
 
-    // System Mounts (Procfs, DNS, Volumes)
+    // System Mounts (Procfs, Sysfs, DNS, Volumes)
     mount(Some("proc"), "/proc", Some("proc"), MsFlags::empty(), None::<&str>).context("Failed to mount proc")?;
+    
+    fs::create_dir_all("/sys").ok();
+    mount(Some("sysfs"), "/sys", Some("sysfs"), MsFlags::empty(), None::<&str>).context("Failed to mount sysfs")?;
+
+    fs::create_dir_all("/sys/fs/cgroup").ok();
+    mount(Some("cgroup2"), "/sys/fs/cgroup", Some("cgroup2"), MsFlags::empty(), None::<&str>).context("Failed to mount cgroup2")?;
     
     let resolv_conf = "/etc/resolv.conf";
     if Path::new(resolv_conf).exists() {

@@ -85,6 +85,8 @@ pub fn run_parent_orchestrator(args: OxideArgs) -> Result<()> {
     // 6. Port Mapping & Forwarding
     let _ = fs::write("/proc/sys/net/ipv4/ip_forward", "1");
     let _ = Command::new("iptables").args(&["-t", "nat", "-A", "POSTROUTING", "-s", "10.0.0.0/24", "!", "-o", "br0", "-j", "MASQUERADE"]).status();
+    let _ = Command::new("iptables").args(&["-A", "FORWARD", "-i", "br0", "-j", "ACCEPT"]).status();
+    let _ = Command::new("iptables").args(&["-A", "FORWARD", "-o", "br0", "-j", "ACCEPT"]).status();
 
     for port_mapping in &args.ports {
         let parts: Vec<&str> = port_mapping.split(':').collect();
