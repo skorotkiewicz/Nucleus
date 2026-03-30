@@ -63,6 +63,7 @@ fn setup_container_env(args: OxideArgs) -> Result<()> {
 
     // Layered Filesystem (OverlayFS)
     let root_base = format!("./temp/{}", args.name);
+    let _ = fs::remove_dir_all(&root_base);
     let upper = format!("{}/upper", root_base);
     let work = format!("{}/work", root_base);
     let merged = format!("{}/merged", root_base);
@@ -104,6 +105,7 @@ fn setup_container_env(args: OxideArgs) -> Result<()> {
     fs::remove_dir(old_root_path_in_container.as_str()).ok();
 
     // System Mounts (Procfs, Sysfs, DNS, Volumes)
+    fs::create_dir_all("/proc").ok();
     mount(
         Some("proc"),
         "/proc",
@@ -112,6 +114,7 @@ fn setup_container_env(args: OxideArgs) -> Result<()> {
         None::<&str>,
     )
     .context("Failed to mount proc")?;
+    fs::create_dir_all("/etc").ok();
 
     fs::create_dir_all("/sys").ok();
     mount(
@@ -171,6 +174,18 @@ fn setup_container_env(args: OxideArgs) -> Result<()> {
 
     // Security: Drop dangerous capabilities
     drop_capabilities()?;
+
+    // Setup Environment Variables
+    unsafe {
+        std::env::set_var(
+            "PATH",
+            "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        );
+        std::env::set_var("HOME", "/root");
+        std::env::set_var("USER", "root");
+        std::env::remove_var("PS1");
+        std::env::remove_var("PROMPT");
+    }
 
     // Execute Target Command
     println!("[Container] Entering {}...", args.command[0]);

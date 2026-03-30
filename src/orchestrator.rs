@@ -227,6 +227,7 @@ pub fn run_parent_orchestrator(args: OxideArgs) -> Result<()> {
     // 8. Cleanup
     println!("[Nucleus] Cleaning up resources...");
     let _ = fs::remove_dir_all(&cgroup_path);
+    let _ = fs::remove_dir_all(format!("./temp/{}", args.name));
     let _ = Command::new("ip")
         .args(["link", "delete", &v_host])
         .status();
